@@ -33,7 +33,15 @@ onMounted(() => {
                 </template>
               </el-menu-item>
             </router-link>
-            
+            <router-link to="/MapEdit" class="no-underline">
+              <el-menu-item index="6">
+                <template #title>
+                  <img src ='./components/icons/icon_web/icon_参数设置.png' class='aside-icon'/>
+                  <span>地图编辑</span>
+                </template>
+              </el-menu-item>
+            </router-link>
+
             <!-- <router-link to="/Mapping" class="no-underline">
               <el-menu-item index="5">
                 <template #title>
@@ -43,14 +51,6 @@ onMounted(() => {
               </el-menu-item>
             </router-link>
 
-            <router-link to="/MapEdit" class="no-underline">
-              <el-menu-item index="6">
-                <template #title>
-                  <img src ='./components/icons/icon_web/icon_参数设置.png' class='aside-icon'/>
-                  <span>地图编辑</span>
-                </template>
-              </el-menu-item>
-            </router-link>
 
 
             <router-link to="/config" class="no-underline">

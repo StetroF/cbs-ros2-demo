@@ -42,7 +42,7 @@ def generate_launch_description():
     launch_file_dir = os.path.join(turtlebot3_multi_robot, "launch")
 
     world = os.path.join(
-        turtlebot3_multi_robot, "worlds", "factory3.world"
+        turtlebot3_multi_robot, "worlds", "factory2.world"
     )
 
     urdf_file_name = "turtlebot3_" + TURTLEBOT3_MODEL + ".urdf"
@@ -72,15 +72,15 @@ def generate_launch_description():
     ROWS = 5
     COLS = 1
 
-    x = -ROWS
-    y = -COLS
+    x = 7
+    y = 10
     last_action = None
 
     # Remapping is required for state publisher otherwise /tf and /tf_static will get be published on root '/' namespace
     remappings = [("/tf", "tf"), ("/tf_static", "tf_static")]
     # Spawn turtlebot3 instances in gazebo
     for i in range(COLS):
-        x = -ROWS
+        x = 3
         for j in range(ROWS):
             # Construct a unique name and namespace
             name = "turtlebot" + str(i) + "_" + str(j)

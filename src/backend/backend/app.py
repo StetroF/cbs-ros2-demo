@@ -1,19 +1,23 @@
+from __future__ import annotations  # Python 3.7及以上支持推迟注解
 from fastapi import FastAPI
 from rclpy.node import Node
 import rclpy
 from cbs_ros2_msgs.srv import PathRequest
-import os,sys
+import os,sys,typing
 from fastapi.middleware.cors import CORSMiddleware  # 导入 CORS 中间件
 import uvicorn
 from backend.routes.map import MapRouter
 from backend.routes.robot import RobotRouter
+from backend.routes import *
 this_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(this_dir, '..'))
+if typing.TYPE_CHECKING:
+    from robot_interface.robot_controller import RobotController
 
 from backend.baseAPI import Point,pathRequest,BaseResponse
 
 class RobotAPI():
-    def __init__(self,robot_controller):
+    def __init__(self,robot_controller:RobotController):
         self.robot_controller = robot_controller
         self.app = FastAPI()
         self.app.add_middleware(
@@ -25,6 +29,7 @@ class RobotAPI():
         )
                 
         self.path_req_client = self.robot_controller.create_client(PathRequest, '/path_request')
+        self.logger = self.robot_controller.get_logger()
         self.init_routes()
         uvicorn.run(self.app, host='0.0.0.0', port=5000)
     def info(self,msg):
@@ -34,10 +39,12 @@ class RobotAPI():
 
     def init_routes(self):
         self.app.add_api_route('/move_to_goal', self.move_to_goal, methods=['POST'])
-        map_router = MapRouter(self.robot_controller)
+        map_router = MapRouter(self.logger)
         self.app.include_router(map_router,tags=["Map"])
         robot_router = RobotRouter(self.robot_controller)
         self.app.include_router(robot_router,tags=["Robot"])
+        map_edit_router = MapEditRouter(self.logger)
+        self.app.include_router(map_edit_router,tags=["MapEdit"])
     async def move_to_goal(self,path: pathRequest):
         req = PathRequest.Request()
         req.robot_id = path.robot_id

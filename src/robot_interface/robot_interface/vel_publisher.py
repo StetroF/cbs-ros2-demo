@@ -7,7 +7,7 @@ class KeyboardControlNode(Node):
     def __init__(self):
         super().__init__('keyboard_control_node')
         # 创建一个 TwistStamped 消息发布者
-        self.publisher_ = self.create_publisher(Twist, '/tb0_2/cmd_vel', 10)
+        self.publisher_ = self.create_publisher(Twist, '/cmd_vel_nav', 10)
         self.get_logger().info("Keyboard control node has started.")
 
         # 设置键盘监听器

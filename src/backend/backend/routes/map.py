@@ -4,15 +4,11 @@ from backend.baseAPI import BaseResponse,MapResponse
 from fastapi import APIRouter, HTTPException, Response
 
 class MapRouter(APIRouter):
-    def __init__(self,robot_controller):
+    def __init__(self,logger):
         super().__init__(prefix="/Map")
         
         self.init_routes()
-        self.robot_controller = robot_controller
-    def info(self,msg):
-        self.robot_controller.get_logger().info(f'{msg}')
-    def error(self,msg):
-        self.robot_controller.get_logger().error(f'{msg}')
+        self.logger = logger
     def init_routes(self):        
         self.add_api_route('/GetMapImage',self.get_map,methods=['GET'])
         self.add_api_route('/GetMapData',self.get_map_data,methods=['GET'])
@@ -20,9 +16,9 @@ class MapRouter(APIRouter):
         if os.path.exists("/home/x/map/history_map_id.txt"): 
             with open("/home/x/map/history_map_id.txt", "r") as f:
                 map_id = f.read().strip()
-                self.info(f"Map id found: {map_id}")
+                self.logger.info(f"Map id found: {map_id}")
         else:
-            self.error("No map id found")
+            self.logger.error("No map id found")
             raise HTTPException(status_code=404, detail="No map id found")
 
         _path = f"/home/x/map/{map_id}/map.png"  # 只需要文件夹路径
@@ -35,7 +31,7 @@ class MapRouter(APIRouter):
             with open("/home/x/map/history_map_id.txt", "r") as f:
                 map_id = f.read().strip()
         else:
-            self.error("No map id found")
+            self.logger.error("No map id found")
             raise HTTPException(status_code=404, detail="No map id found")
 
         _path = f"/home/x/map/{map_id}"  # 只需要文件夹路径
@@ -54,7 +50,7 @@ class MapRouter(APIRouter):
                 with open(file_path, "r") as f:
                     map_contents[key] = f.read()
             except FileNotFoundError:
-                self.error(f"File not found: {file_path}")
+                self.logger.error(f"File not found: {file_path}")
                 map_contents[key] = None  # 或者根据需求处理缺失的文件
 
         map_contents["map_name"] = map_id

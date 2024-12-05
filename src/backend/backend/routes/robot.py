@@ -5,6 +5,7 @@ import robot_interface
 from fastapi import  WebSocket
 import asyncio
 import typing
+from rclpy.logging import get_logger
 if typing.TYPE_CHECKING:
     from robot_interface.robot_controller import RobotController
 class RobotRouter(APIRouter):
@@ -13,7 +14,7 @@ class RobotRouter(APIRouter):
         self.robot_controller = robot_controller
         
         self.init_routes()
-        
+        self.logger = get_logger('robot_router')
     def init_routes(self):
         self.add_api_websocket_route('/robot_pose_websocket',self.robot_pose_websocket)
     def info(self,msg):

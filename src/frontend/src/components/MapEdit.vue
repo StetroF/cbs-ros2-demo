@@ -235,7 +235,8 @@
         showElement: false,
         publicIP: null,
         nodes: [],
-        bCurbePointSubjectmap_info:{
+        bCurbePointSubject:null,
+        map_info:{
           resolution: 0.05,
           width: null,
           height: null,
@@ -361,8 +362,6 @@
       this.fetchMapData().then(() => 
       {
         this.fetchMapImage()
-
-
 
         this.bCurbePointSubject = new Subject()
         this.elementSubject = new Subject()
@@ -1088,6 +1087,7 @@
 
 
       async saveMap(){
+        console.log('保存地图')
         const request = {
           map_name: this.selectedMap,
           edges: this.map_info.edges,
@@ -1517,10 +1517,10 @@
         // 计算相对于 mapLayer 的坐标
         let relativeX = point.x - downleft.x;
         let relativeY = downleft.y - point.y;
-        console.log(`鼠标坐标: (${relativeX}, ${relativeY})`);
+        // console.log(`鼠标坐标: (${relativeX}, ${relativeY})`);
 
         const zoom = this.map.getZoom();
-        console.log(`当前缩放级别: ${zoom}`);
+        // console.log(`当前缩放级别: ${zoom}`);
         relativeX = relativeX / (Math.pow(2, zoom));
         relativeY = relativeY / (Math.pow(2, zoom));
 
@@ -2099,11 +2099,14 @@
         //找到node和edge的对应关系
       },
       async getMapList() {
-        try {
+        try 
+        {
+            // console.log('获取地图列表');
             const response = await axios.get(`http://${this.publicIP}:5000/MapEdit/GetMapList`);
             this.mapList = response.data; // 假设 response.data 是一个地图列表
             // console.log('获取到的地图列表：', this.mapList);
-        } catch (error) {
+        } 
+        catch (error) {
             console.error('获取地图列表失败：', error);
             // 可以在这里添加用户提示，例如使用 alert 或其他方式
         }
@@ -2149,10 +2152,10 @@
         this.elementLayer = L.layerGroup().addTo(this.map); // 初始化元素图层
       },
       handleAddNode(event) {
-        this.showSelectNode = true
+        this.showSelectNode = true;
         const clickedLatLng = this.map.mouseEventToLatLng(event.originalEvent);
         const point = this.map.latLngToContainerPoint(clickedLatLng);
-        
+
         // 获取 imageOverlay 的边界
         const bounds = this.imageOverlay.getBounds();
         const downleft = this.map.latLngToContainerPoint(bounds.getSouthWest());
@@ -2164,26 +2167,27 @@
 
         const zoom = this.map.getZoom();
         console.log(`当前缩放级别: ${zoom}`);
-        relativeX = relativeX / (Math.pow(2, zoom))
-        relativeY = relativeY / (Math.pow(2, zoom))
+        relativeX = relativeX / Math.pow(2, zoom);
+        relativeY = relativeY / Math.pow(2, zoom);
 
+        // **改动1：生成顺序编号的 node_id**
+        const node_id = this.generateSequentialNodeId();
+        const topo_type = 2;
+        const transformHostX = (relativeX / this.map_info.scale) * this.map_info.resolution;
+        const transformHostY = (relativeY / this.map_info.scale) * this.map_info.resolution;
 
-        const node_id = this.generateRandomString()
-        const topo_type = 2
-        const transformHostX = relativeX / this.map_info.scale * this.map_info.resolution
-        const transformHostY = relativeY / this.map_info.scale * this.map_info.resolution
         this.displayNode = {
-            x: transformHostX.toFixed(4),
-            y: transformHostY.toFixed(4),
-            node_id: node_id,
-        }
+          x: transformHostX.toFixed(4),
+          y: transformHostY.toFixed(4),
+          node_id: node_id,
+        };
         const node_info = {
-            node_id: node_id,
-            x: transformHostX,
-            y: transformHostY,
-            topo_type: topo_type,
-        }
-        this.nodes.push(node_info)
+          node_id: node_id,
+          x: transformHostX,
+          y: transformHostY,
+          topo_type: topo_type,
+        };
+        this.nodes.push(node_info);
         this.instructionPoint.push({
           type: 3,
           x: relativeX,
@@ -2191,59 +2195,75 @@
           originStyle: this.nodeStyle.originalStyle,
           label: undefined,
           node_id: node_id,
-        })
+        });
 
-        const marker = L.circleMarker([relativeY, relativeX], 
-          this.nodeStyle.originalStyle
-        );
+        const marker = L.circleMarker([relativeY, relativeX], this.nodeStyle.originalStyle);
         const dragIcon = L.divIcon({
-                className: 'transparent-drag-area', // 定义透明图标的样式
-                iconSize: [20, 20],                 // 设置透明区域的大小
-                iconAnchor: [10, 10],               // 图标锚点
-            });
+          className: 'transparent-drag-area', // 定义透明图标的样式
+          iconSize: [20, 20], // 设置透明区域的大小
+          iconAnchor: [10, 10], // 图标锚点
+        });
         const dragMarker = L.marker([relativeY, relativeX], {
-                icon: dragIcon,
-                draggable: false,                    // 默认禁止拖动
-                opacity: 0,                         // 透明度设为 0
-            }).addTo(this.map);
+          icon: dragIcon,
+          draggable: false, // 默认禁止拖动
+          opacity: 0, // 透明度设为 0
+        }).addTo(this.map);
         marker.point = {
-          x:relativeX,
-          y:relativeY,
+          x: relativeX,
+          y: relativeY,
           node_id: node_id,
         }; // 保存节点信息
         marker.originalStyle = point.originStyle; // 保存原始样式
-        marker.relativeEdges = []
-        marker.dragMarker = dragMarker
+        marker.relativeEdges = [];
+        marker.dragMarker = dragMarker;
+
         // 将拖动事件同步到实际的 circleMarker 上
         marker.dragMarker.on('drag', (event) => {
           const markerLatLng = event.target.getLatLng();
           const point = this.map.latLngToContainerPoint(markerLatLng);
-          // 获取 mapLayer 的边界
           const bounds = this.imageOverlay.getBounds();
           const downleft = this.map.latLngToContainerPoint(bounds.getSouthWest());
 
-          // 计算相对于 mapLayer 的坐标
           let relativeX = point.x - downleft.x;
           let relativeY = downleft.y - point.y;
 
           const zoom = this.map.getZoom();
-          relativeX = relativeX / (Math.pow(2, zoom))
-          relativeY = relativeY / (Math.pow(2, zoom))
-          this.nodeSubject.next({
-              node_id: marker.point.node_id,
-              x: relativeX,
-              y: relativeY,
-              delete:false
-            })
+          relativeX = relativeX / Math.pow(2, zoom);
+          relativeY = relativeY / Math.pow(2, zoom);
 
+          this.nodeSubject.next({
+            node_id: marker.point.node_id,
+            x: relativeX,
+            y: relativeY,
+            delete: false,
+          });
         });
+
         // 添加 marker 到图层
         this.nodesLayer.addLayer(marker);
 
-
-
-        console.log('生成node:',node_info)
+        console.log('生成node:', node_info);
       },
+
+      generateSequentialNodeId() {
+        // 如果 this.nodes 为空，则从 P1 开始
+        if (!this.nodes) {
+          this.nodes = [];
+          return 'P1';
+        }
+
+        // 获取已有节点的最大编号
+        const existingIds = this.nodes
+          .map(node => node.node_id)
+          .filter(id => id.startsWith('P'))
+          .map(id => parseInt(id.slice(1))) // 提取数字部分
+          .filter(num => !isNaN(num)); // 过滤非数字
+
+        // 获取最大编号，如果没有节点，则默认从 P1 开始递增
+        const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+        return `P${maxId + 1}`;
+      },
+
 
       // 绘制地图到leaflet上
       async fetchMapImage() {
@@ -2330,29 +2350,28 @@
     },
 
   
-      async fetchMapData() {
-        try {
-          const response = await axios.post(`http://${this.publicIP}:5000/Map/GetMapData`);
-          this.elementInfo = response.data.elements_info?JSON.parse(response.data.elements_info).elementInfo:[]
-          this.selectedMap = response.data.map_name
-          console.log('读取地图信息')
-          console.log('elementInfo:', this.elementInfo)
-          this.map_info = {
-            ...this.map_info,
-            resolution: JSON.parse(response.data.map_json).resolution,
-          }
-          if (response.data.map_edges) {
-          this.map_info.edges = JSON.parse(response.data.map_edges).map_edges
-          // console.log('Map edges: ',this.map_info.edges)
-          }
-          if (response.data.node) {
-          const json_node = JSON.parse(response.data.node);
-          this.nodes = json_node.node;
-          }
-        } catch (error) {
-          console.error('Failed to load map data:', error);
+    async fetchMapData() {
+      try {
+        const response = await axios.get(`http://${this.publicIP}:5000/Map/GetMapData`);
+        // this.elementInfo = response.data.elements_info?JSON.parse(response.data.elements_info).elementInfo:null
+        // console.log('elementInfo:', this.elementInfo)
+        console.log('收到地图数据响应',JSON.parse(response.data.map_edges))
+        this.selectedMap = response.data.map_name
+
+        this.map_info = {
+          ...this.map_info,
+          resolution: JSON.parse(response.data.map_json).resolution,
+          origin: JSON.parse(response.data.map_json).origin,
         }
-      },
+        this.map_info.edges = JSON.parse(response.data.map_edges).map_edges?JSON.parse(response.data.map_edges).map_edges :[]
+        console.log('边信息:',(this.map_info.edges))
+        const json_node = JSON.parse(response.data.node);
+        this.nodes = json_node;
+        // console.log('node信息',this.nodes)
+      } catch (error) {
+        console.error('Failed to load map data:', error);
+      }
+    },
       //显示普通点，充点电，储位点
       drawNodes() {
         // 清空现有的节点图层
@@ -2370,11 +2389,12 @@
 
         // 遍历 elementInfo 和 nodes 匹配节点，构建 instructionPoint 列表
         if (!this.nodes){
+          console.log('没有节点数据')
             return;
         }
 
         this.nodes.forEach(node => {
-
+            console.log('node:', node)  
             let matched = false;
             if (this.elementInfo)
              { this.elementInfo.forEach(element => {

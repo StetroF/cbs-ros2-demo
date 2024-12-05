@@ -215,7 +215,7 @@ export default {
       this.updateRobotMarker(robotPose)})
   },
   beforeUnmount() {
-        this.unscribeLidarRobotPose()
+        this.unsubscribeRobotPose()
       },
   methods: {
 
@@ -289,7 +289,12 @@ export default {
         console.error('取消任务失败:', error);
       });
     },
-
+    unsubscribeRobotPose(){
+      if (this.robotPoseWebsocket){
+        this.robotPoseWebsocket.close();
+        this.robotPoseWebsocket = null;
+      }
+    },
     subscribeRobotPose(){
       this.robotMarkerSubject = new Subject();
       this.robotMarker = {};
@@ -320,15 +325,10 @@ export default {
         let gazebo_robotpose = robotPoses[robot_id]
         // console.log('机器人角度:',gazebo_robotpose)
         // console.log('origin:',this.map_info.origin)
-        // gazebo_robotpose[0] +=this.map_info.origin.x
-        // gazebo_robotpose[1] +=this.map_info.origin.y
+
         let mapRobotPose = this.transformPoint(gazebo_robotpose)
 
-        const scale = 6.8
-        mapRobotPose[0] += this.map_info.width*this.map_info.scale/2 //由于gazebo是地图center点为起始点，因此这里添加偏移量
-        mapRobotPose[1] += this.map_info.height*this.map_info.scale/2
 
-        // console.log('更新机器人',robot_id,'位置:',mapRobotPose)
 
         if (!this.robotMarker[robot_id]){
           this.robotMarker[robot_id] = L.marker([mapRobotPose[1], mapRobotPose[0]], {
@@ -344,11 +344,7 @@ export default {
         else{
           this.robotMarker[robot_id].setLatLng([mapRobotPose[1], mapRobotPose[0]]);
           this.robotMarker[robot_id].setRotationAngle(-(gazebo_robotpose[2] * 180/Math.PI-90))
-          if (robot_id == 'tb0_2')
-          {
-            console.log('更新机器人',robot_id,'角度:',-(gazebo_robotpose[2] * 180/Math.PI-90))
 
-          }
         }
       }
     },
