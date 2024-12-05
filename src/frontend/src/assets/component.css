@@ -1,0 +1,9 @@
+.container {
+    margin-top: 15px;
+    border: 2px solid #ccc; /* 边框样式 */
+    border-radius: 8px; /* 圆角 */
+    padding: 20px;
+    background-color: #f9f9f9; /* 背景颜色 */
+    margin-left: 10px; /* 可根据需要调整间距 */
+    width: 310px; /* 固定宽度，可以根据需要调整 */
+}

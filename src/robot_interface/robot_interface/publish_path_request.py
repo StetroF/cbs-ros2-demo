@@ -9,16 +9,15 @@ class PublishPathRequest(Node):
         
     def test_publish_path_request(self):
         req = PathRequest.Request()
-        req.robot_id = 'tb0_3'
-        req.goal.x = 0.0
-        req.goal.y = 0.0
+        req.robot_id = 'tb0_2'
+        req.goal.x = -1.50
+        req.goal.y = 3.0
         self.get_logger().info(f"Sending request: {req}")
         while not self.client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('service not available, waiting again...')
         
         future = self.client.call_async(req)
         future.add_done_callback(self.callback_function)
-        
     def callback_function(self, future):
         try:
             response = future.result()

@@ -42,7 +42,7 @@ def generate_launch_description():
     launch_file_dir = os.path.join(turtlebot3_multi_robot, "launch")
 
     world = os.path.join(
-        turtlebot3_multi_robot, "worlds", "factory2.world"
+        turtlebot3_multi_robot, "worlds", "factory3.world"
     )
 
     urdf_file_name = "turtlebot3_" + TURTLEBOT3_MODEL + ".urdf"
@@ -123,8 +123,7 @@ def generate_launch_description():
             )
 
             # Advance by 2 meter in x direction for next robot instantiation
-            x += 2.0
-
+            x += 1.75
             if last_action is None:
                 # Call add_action directly for the first robot to facilitate chain instantiation via RegisterEventHandler
                 ld.add_action(turtlebot_state_publisher)

@@ -1,0 +1,86 @@
+body {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    margin: 0;
+}
+
+
+
+.container {
+    display: flex;
+    flex: 1;
+}
+
+
+.sidebar {
+    width: 10%; /* 侧边栏的宽度 */
+    border-right: 1px solid #ccc; /* 侧边栏与主题内容区域的分隔线 */
+    padding: 10px;
+}
+
+main {
+    width: 50%; /* 主题内容区域的宽度 */
+    flex: 1;
+    padding: 10px;
+    /* border-le */
+}
+
+header {
+    display: flex; /* 使用 Flexbox 布局 */
+    justify-content: space-between; /* 内部元素等距离排列 */
+    align-items: center; /* 垂直居中对齐 */
+    border-bottom: 1px solid #ccc; /* 分隔线 */
+    padding: 10px;
+    width: 1600px; /* 容器宽度 */
+    box-sizing: border-box; /* 包含内边距和边框在内的宽度计算 */
+}
+
+footer {
+    height: 40px; /* 页脚的高度 */
+    text-align: center;
+    border-top: 1px solid #ccc; /* 页脚与内容区域的分隔线 */
+    padding: 10px;
+}
+.header-icons {
+    display: flex;
+    justify-content: space-between; /* 左右空间分配 */
+    width: 100%; /* 容器宽度 */
+}
+
+.header-icons .icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+    /* 默认宽度设置为0，以便根据百分比控制 */
+  width:40px;
+}
+
+/* 设置每个图标所占的空间比例 */
+.company-icon {
+    flex: 0 0 15%; /* 公司图标占15% */
+    width: 15%;
+}
+
+.home-button {
+    flex: 0 0 5%; /* 首页按钮占5% */
+}
+
+.setting-button {
+    flex: 0 0 5%; /* 设置按钮占5% */
+}
+
+.user-button {
+    flex: 0 0 5%; /* 用户按钮占5% */
+}
+
+/* 确保 router-link 不影响布局样式 */
+.menu-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+  }
+  .menu-link:hover {
+    color: #409eff; /* 可选：自定义悬停颜色 */
+  }

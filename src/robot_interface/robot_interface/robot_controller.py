@@ -1,4 +1,3 @@
-import pygame
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
@@ -19,13 +18,6 @@ from robot_interface.pid_controller import PIDController
 from cbs_ros2_msgs.srv import PathRequest
 import threading
 from backend.app import RobotAPI
-# 定义全局常量
-MAP_PATH = '/home/x/map.png'  # 地图文件路径
-MAP_WIDTH, MAP_HEIGHT = 800, 600  # 地图显示的宽度和高度
-
-# 设置缩放比例，调整位置显示的大小
-SCALE_X = 50  # 水平缩放比例
-SCALE_Y = 50   # 垂直缩放比例
 
 class RobotController(Node):
     def __init__(self):
@@ -49,11 +41,14 @@ class RobotController(Node):
         ]
         # 用于存储位置数据
         self.positions = dict()
+        self.rate = self.create_rate(5)
+
         # PID 控制器参数
         self.angular_pid = PIDController(1.0, 0.0, 0.1)  # 旋转控制器
         self.linear_pid = PIDController(0.5, 0.0, 0.05)  # 平移控制器
         self.path_server = self.create_service(PathRequest, 'path_request', self.path_request_callback)
-        
+    def get_robot_poses(self):
+        return self.positions
     def path_request_callback(self, request, response):
         move_thread = threading.Thread(target=self.move_to_goal, args=(request,))
         move_thread.start()
@@ -69,6 +64,8 @@ class RobotController(Node):
         self.positions[robot_id] = (position.x, position.y,yaw)
     def info(self,msg):
         self.get_logger().info(f'{msg}')
+    def error(self,msg):
+        self.get_logger().error(f'{msg}')
     def move_to_goal(self, path_request=None):
         robot_id = path_request.robot_id if path_request else 'tb0_3'  # 测试用默认值
         if robot_id not in self.robots:
@@ -134,25 +131,7 @@ class RobotController(Node):
 
             vel_publisher.publish(twist)
             self.get_logger().info(f"Moving robot {robot_id}: Angle diff {angle_diff:.4f}, Distance diff {distance_diff:.4f}")
-def draw_map(screen, map_surface, positions):
-    # 显示地图
-    screen.blit(map_surface, (0, 0))
-    
-    # 设置机器人标记的颜色和大小
-    color = (255, 0, 0)  # 红色
-    radius = 8  # 调整机器人标记的大小
-    # print(positions)
-    # 在地图上显示每个机器人的位置
-    for i, pos in positions.items():
-        if pos is not None:
-            x, y,yaw = pos
-            # 将机器人的x, y坐标映射到屏幕像素坐标
-            pixel_x = int(x * SCALE_X)  # 缩放比例，可调整
-            pixel_y = -int(y * SCALE_Y)  # 缩放比例，可调整
-            
-            # 确保机器人标记的位置在屏幕范围内
-            if 0 <= pixel_x < MAP_WIDTH and 0 <= pixel_y < MAP_HEIGHT:
-                pygame.draw.circle(screen, color, (pixel_x, pixel_y), radius)
+            self.rate.sleep()
 
 def main():
     # 初始化rclpy
@@ -163,14 +142,8 @@ def main():
     app_thread = threading.Thread(target=RobotAPI, args=(robot_controller,))
     app_thread.start()
     # 加载地图
-    map_surface = pygame.image.load(MAP_PATH)
-    map_surface = pygame.transform.scale(map_surface, (MAP_WIDTH, MAP_HEIGHT))
 
-    # 用于存储机器人的位置
-    positions = [None] * 5
-    # odom_subscriber.move_to_goal()
-    # 主循环
-    clock = pygame.time.Clock()
+
     while rclpy.ok():
         # 处理ROS回调
         rclpy.spin_once(robot_controller)

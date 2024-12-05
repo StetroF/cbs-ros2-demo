@@ -5,10 +5,12 @@ from cbs_ros2_msgs.srv import PathRequest
 import os,sys
 from fastapi.middleware.cors import CORSMiddleware  # 导入 CORS 中间件
 import uvicorn
+from backend.routes.map import MapRouter
+from backend.routes.robot import RobotRouter
 this_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(this_dir, '..'))
 
-from backend.baseAPI import Point,pathRequest
+from backend.baseAPI import Point,pathRequest,BaseResponse
 
 class RobotAPI():
     def __init__(self,robot_controller):
@@ -27,10 +29,16 @@ class RobotAPI():
         uvicorn.run(self.app, host='0.0.0.0', port=5000)
     def info(self,msg):
         self.robot_controller.get_logger().info(f'{msg}')
+    
+    
+
     def init_routes(self):
         self.app.add_api_route('/move_to_goal', self.move_to_goal, methods=['POST'])
-
-    def move_to_goal(self,path: pathRequest):
+        map_router = MapRouter(self.robot_controller)
+        self.app.include_router(map_router,tags=["Map"])
+        robot_router = RobotRouter(self.robot_controller)
+        self.app.include_router(robot_router,tags=["Robot"])
+    async def move_to_goal(self,path: pathRequest):
         req = PathRequest.Request()
         req.robot_id = path.robot_id
         req.goal.x = path.goal.x
@@ -38,10 +46,13 @@ class RobotAPI():
 
         self.info(f"Sending path request to robot {path.robot_id} to move to {path.goal.x}, {path.goal.y}")
         future = self.path_req_client.call_async(req)
-        rclpy.spin_until_future_complete(self.robot_controller, future)
-        if future.result() is not None:
-            self.info(f"Path request to robot {path.robot_id} to move to {path.goal.x}, {path.goal.y} sent successfully")
-            return {"status": "success"}
-        else:
-            self.info(f"Failed to send path request to robot {path.robot_id} to move to {path.goal.x}, {path.goal.y}")
-            return {"status": "failed"}
+        # future.add_done_callback(self.on_path_response)
+        return BaseResponse(status=True, message="Path request sent successfully")
+
+    # def on_path_response(self, future):
+    #     try:
+    #         response = future.result()
+    #         self.info(f"Path request response received from robot {response.robot_id}: {response.status}")
+    #     except Exception as e:
+    #         self.info(f"Error while processing path request response: {e}")
+
