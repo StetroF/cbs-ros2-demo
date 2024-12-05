@@ -9,14 +9,16 @@ import os
 import math
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-util_path = os.path.abspath(os.path.join(current_dir, '../../util'))
+util_path = os.path.abspath(os.path.join(current_dir, 'util'))
+print(f'utilPath: {util_path}')
 cbs_ros2_msgs_path = os.path.abspath(os.path.join(current_dir, '../../cbs_ros2_msgs'))
 sys.path.append(util_path)
 sys.path.append(cbs_ros2_msgs_path)
-from transform import euler_from_quaternion
-from pid_controller import PIDController
+from robot_interface.transform import euler_from_quaternion
+from robot_interface.pid_controller import PIDController
 from cbs_ros2_msgs.srv import PathRequest
 import threading
+from backend.app import RobotAPI
 # 定义全局常量
 MAP_PATH = '/home/x/map.png'  # 地图文件路径
 MAP_WIDTH, MAP_HEIGHT = 800, 600  # 地图显示的宽度和高度
@@ -25,9 +27,9 @@ MAP_WIDTH, MAP_HEIGHT = 800, 600  # 地图显示的宽度和高度
 SCALE_X = 50  # 水平缩放比例
 SCALE_Y = 50   # 垂直缩放比例
 
-class OdomSubscriber(Node):
+class RobotController(Node):
     def __init__(self):
-        super().__init__('odom_subscriber')
+        super().__init__('robot_controller')
         
         self.robots = [f'tb0_{i}' for i in range(5)]
         # 订阅5个odom主题，并传递robot_id作为参数
@@ -157,15 +159,9 @@ def main():
     rclpy.init()
 
     # 创建节点
-    odom_subscriber = OdomSubscriber()
-
-    # 初始化pygame
-    # pygame.init()
-
-    # 设置屏幕
-    # screen = pygame.display.set_mode((MAP_WIDTH, MAP_HEIGHT))
-    # pygame.display.set_caption('Map Display with Robot Odom')
-
+    robot_controller = RobotController()
+    app_thread = threading.Thread(target=RobotAPI, args=(robot_controller,))
+    app_thread.start()
     # 加载地图
     map_surface = pygame.image.load(MAP_PATH)
     map_surface = pygame.transform.scale(map_surface, (MAP_WIDTH, MAP_HEIGHT))
@@ -177,26 +173,9 @@ def main():
     clock = pygame.time.Clock()
     while rclpy.ok():
         # 处理ROS回调
-        rclpy.spin_once(odom_subscriber)
+        rclpy.spin_once(robot_controller)
         
-        # # 事件处理
-        # for event in pygame.event.get():
-        #     if event.type == pygame.QUIT:
-        #         rclpy.shutdown()
-        #         pygame.quit()
-        #         return
-        
-        # # 清空屏幕
-        # screen.fill((255, 255, 255))
-        
-        # # 绘制地图和机器人的位置
-        # draw_map(screen, map_surface, odom_subscriber.positions)
-        
-        # # 更新屏幕
-        # pygame.display.flip()
-        
-        # # 设置帧率
-        # clock.tick(30)
+
 
 if __name__ == '__main__':
     main()

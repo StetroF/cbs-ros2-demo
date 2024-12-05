@@ -11,7 +11,7 @@ class PublishPathRequest(Node):
         req = PathRequest.Request()
         req.robot_id = 'tb0_3'
         req.goal.x = 0.0
-        req.goal.y = 3.0
+        req.goal.y = 0.0
         self.get_logger().info(f"Sending request: {req}")
         while not self.client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('service not available, waiting again...')

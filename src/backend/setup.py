@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'robot_interface'
+package_name = 'backend'
 
 setup(
     name=package_name,
@@ -11,11 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=[
-        'setuptools',
-        'rclpy',
-        'sensor_msgs'
-    ],
+    install_requires=['setuptools'],
     zip_safe=True,
     maintainer='x',
     maintainer_email='xufz',
@@ -24,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'robot_controller = robot_interface.robot_controller:main'
+            "app = backend.app:main"
         ],
     },
 )
