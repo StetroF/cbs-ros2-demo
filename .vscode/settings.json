@@ -1,7 +1,0 @@
-{
-    "python.analysis.extraPaths": [
-        "src/backend",
-        "src/backend/routes",
-        "src/robot_interface"
-    ]
-}
