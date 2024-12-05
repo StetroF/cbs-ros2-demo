@@ -1,5 +1,22 @@
-install/
-build/
-log/
-.vscode/
+# 忽略环境文件
+.env
+
+# 忽略 Python 编译文件
+*.pyc
+__pycache__/
+
+# 忽略日志文件
+*.log
+
+# 忽略 MacOS 系统文件
+.DS_Store
+
+# 忽略 Node.js 项目目录
 node_modules/
+dist/
+
+# 忽略 ROS 自动生成文件
+build/
+devel/
+install/
+log/
