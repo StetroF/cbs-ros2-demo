@@ -2,4 +2,4 @@ install/
 build/
 log/
 .vscode/
-src/frontend/
+src/frontend/node_modules/
