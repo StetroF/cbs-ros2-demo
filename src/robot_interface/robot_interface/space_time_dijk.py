@@ -9,7 +9,7 @@ from pprint import pprint
 from typing import List, Tuple,Dict
 import heapq
 import math
-from robot_interface.base_class import RobotState,Velocity
+from robot_interface.base_class import RobotState
 class Node:
     def __init__(self, node_id, point=[0, 0]):
         self.node_id = node_id
@@ -103,14 +103,14 @@ class Planner:
     1.相对于astar,会根据输入robot的速度，计算机器人到达每个节点的预期时间
     TODO 2.根据dynamic_obstacle
     """
-    def plan(self, robot: RobotState = None, dynamic_obstacle: Dict[str, List[float]] = None):
+    def plan(self, robot: RobotState = None, dynamic_obstacle: Dict[str, float] = None):
         if robot is None:
             robot = RobotState("tb0_1")
             robot.pose = [3.0, 3.25, 1.57]  # 初始位置：[x, y, theta]
             robot.velocity = [0.5, 0.5]  # 线速度和角速度
             robot.current_goal = "P15"
             robot.timestamp = 0.0  # 初始时间戳
-
+        print(f'当前机器人位置：{robot.pose}')
         # 找到距离机器人当前位置最近的节点
         start_node = min(self.nodes, key=lambda x: ((x.point[0] - robot.pose[0]) ** 2 + (x.point[1] - robot.pose[1]) ** 2) ** 0.5)
         target_node_id = robot.current_goal
@@ -131,7 +131,7 @@ class Planner:
         
         # Dijkstra算法，优先队列中加入时间成本
         queue = []  # 优先队列（最小堆）
-        heapq.heappush(queue, (0, start_node, start_node_reach_time, heading_angle))  # (成本, 节点, 到达时间，到达这个点的预期角度)
+        heapq.heappush(queue, (start_node_reach_time, start_node, 0, heading_angle))  # (成本, 节点, 到达时间，到达这个点的预期角度)
         visited = set()  # 用于避免重复访问节点
         came_from = {}  # 用于路径重构
         costs = {node: float('inf') for node in self.nodes}
@@ -140,7 +140,8 @@ class Planner:
 
         while queue:
             current_cost, current_node, current_time, current_angle = heapq.heappop(queue)
-
+            # current_node.add_neighbour(current_node, 0)  #把自己也加入到搜索队列中 ，用于多机器人路径规划的等待和绕路解法
+            
             if current_node in visited:
                 continue
             visited.add(current_node)
@@ -155,6 +156,8 @@ class Planner:
 
             # 更新成本，并将邻居节点加入队列
             for neighbour, cost in current_node.neighbours:
+                ###把自己也添加到搜索队列中
+                # neighbour.add_neighbour(neighbour, 0)
                 dist_to_neighbour = ((neighbour.point[0] - current_node.point[0]) ** 2 + (neighbour.point[1] - current_node.point[1]) ** 2) ** 0.5
                 heading_angle_to_neighbour = math.atan2(neighbour.point[1] - current_node.point[1], neighbour.point[0] - current_node.point[0])
                 angle_diff_to_neighbour = heading_angle_to_neighbour - current_angle
@@ -170,7 +173,7 @@ class Planner:
                     costs[neighbour] = new_cost
                     came_from[neighbour] = current_node
                     reach_times[neighbour] = new_time  # 记录到达邻居节点的时间
-                    heapq.heappush(queue, (new_cost, neighbour, new_time, heading_angle_to_neighbour))
+                    heapq.heappush(queue, (new_time, neighbour, new_cost, heading_angle_to_neighbour))
 
         return []  # 如果没有找到路径，返回空路径
     

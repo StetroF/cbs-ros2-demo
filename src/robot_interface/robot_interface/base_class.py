@@ -16,6 +16,7 @@ class RobotState:
         self.task_state: TaskState
         self.velocity:list
         self.timestamp: float
+        self.robot_radius = 0.1 ##固定0.1
     def set_current_goal(self,goal):
         self.current_goal = goal
     

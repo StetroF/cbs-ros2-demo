@@ -1,4 +1,7 @@
 from __future__ import annotations  # Python 3.7及以上支持推迟注解
+if typing.TYPE_CHECKING:
+    from robot_interface.robot_controller import RobotController
+
 from fastapi import FastAPI
 from rclpy.node import Node
 import rclpy
@@ -11,8 +14,6 @@ from backend.routes.robot import RobotRouter
 from backend.routes import *
 this_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(this_dir, '..'))
-if typing.TYPE_CHECKING:
-    from robot_interface.robot_controller import RobotController
 
 from backend.baseAPI import Point,pathRequest,BaseResponse
 
