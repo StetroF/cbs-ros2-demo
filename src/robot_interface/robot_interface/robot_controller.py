@@ -2,9 +2,6 @@
 机器人统一控制接口，订阅5个odom主题，并根据位置差控制机器人运动。(PID控制)
 """
 
-
-
-
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
@@ -14,63 +11,68 @@ import sys
 import os
 import math
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-util_path = os.path.abspath(os.path.join(current_dir, 'util'))
-print(f'utilPath: {util_path}')
-cbs_ros2_msgs_path = os.path.abspath(os.path.join(current_dir, '../../cbs_ros2_msgs'))
-robot_interface_path = os.path.abspath(os.path.join(current_dir, '../../robot_interface'))
-sys.path.append(util_path)
-sys.path.append(cbs_ros2_msgs_path)
-sys.path.append(robot_interface_path)
+
 from robot_interface.transform import euler_from_quaternion
 from robot_interface.pid_controller import PIDController
+from robot_interface.base_class import RobotState,Pose,TaskState
 from cbs_ros2_msgs.srv import PathRequest
 import threading
 from backend.app import RobotAPI
+from datetime import datetime
+
+
 
 class RobotController(Node):
     def __init__(self):
         super().__init__('robot_controller')
+        self.rate = self.create_rate(5)
+        self.robots:dict[str,RobotState] = {}
+        num_of_robots = 5
+        self.vel_publishers = []
         
-        self.robots = [f'tb0_{i}' for i in range(5)]
-        # 订阅5个odom主题，并传递robot_id作为参数
-        self.subscribers = [
+        
+        for i in range (num_of_robots):
+            self.robots[f'tb0_{i}'] = RobotState(f'tb0_{i}')
+            # 订阅5个odom主题，并传递robot_id作为参数
             self.create_subscription(
                 Odometry,
                 f'/tb0_{i}/odom',
                 partial(self.odom_callback, robot_id=f'tb0_{i}'),  # 使用partial传递robot_id
                 10
             )
-            for i in range(5)
-        ]
-        
-        self.vel_publishers = [
-            self.create_publisher(Twist, f'/tb0_{i}/cmd_vel', 10)
-            for i in range(5)
-        ]
-        # 用于存储位置数据
-        self.positions = dict()
-        self.rate = self.create_rate(5)
-
+            self.vel_publishers.append(
+                self.create_publisher(Twist, f'/tb0_{i}/cmd_vel', 10)
+            )
         # PID 控制器参数
         self.angular_pid = PIDController(1.0, 0.0, 0.1)  # 旋转控制器
         self.linear_pid = PIDController(0.5, 0.0, 0.05)  # 平移控制器
         self.path_request_server = self.create_service(PathRequest, 'path_request', self.path_request_callback)
-    def get_robot_poses(self):
-        return self.positions
+
+
+    def get_robot_poses(self)->dict[str,RobotState]:
+        return self.robots
     def path_request_callback(self, request, response):
         move_thread = threading.Thread(target=self.move_to_goal, args=(request,))
         move_thread.start()
         
-        # move_thread.join()
         response.success = True
         return response
 
     def odom_callback(self, msg: Odometry, robot_id: str):
         # 获取位置并存储
         position = msg.pose.pose.position
-        r,p,yaw = euler_from_quaternion(msg.pose.pose.orientation)
-        self.positions[robot_id] = (position.x, position.y,yaw)
+        r, p, yaw = euler_from_quaternion(msg.pose.pose.orientation)
+        self.robots[robot_id].pose = [position.x, position.y, yaw]
+        
+        # 转换时间戳为 datetime 对象
+        timestamp = msg.header.stamp.sec + msg.header.stamp.nanosec / 1e9
+        self.robots[robot_id].timestamp = timestamp
+        
+        # 创建 datetime 对象并格式化输出
+        # dt = datetime.fromtimestamp(timestamp)
+        # time_str = dt.strftime("%H:%M:%S")  # 只显示小时、分钟和秒
+
+        # self.info(f"Received odom for robot {robot_id}: {time_str}")
     def info(self,msg):
         self.get_logger().info(f'{msg}')
     def error(self,msg):
@@ -84,10 +86,10 @@ class RobotController(Node):
         vel_publisher = self.vel_publishers[int(robot_id[-1])]
 
         # 获取初始和目标位姿
-        start_pos = self.positions.get(robot_id)
+        start_pos = self.robots.get(robot_id).pose
         while start_pos is None:
             rclpy.spin_once(self)
-            start_pos = self.positions.get(robot_id)
+            start_pos = self.robots.get(robot_id).pose
         
         end_pos = (path_request.goal.x, path_request.goal.y) if path_request else (-2,5)
 
@@ -106,7 +108,7 @@ class RobotController(Node):
             prev_time = current_time
 
             # 更新机器人当前位置
-            current_pos = self.positions.get(robot_id)
+            current_pos = self.robots.get(robot_id).pose
 
 
             # 计算实时角度和距离差

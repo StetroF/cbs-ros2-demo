@@ -375,7 +375,6 @@ export default {
       }
     },
     updateRobotMarker(robotPoses){
-      // console.log('更新机器人位置:',robotPoses)
       for(let robot_id in robotPoses){
         
         let gazebo_robotpose = robotPoses[robot_id]
@@ -555,7 +554,7 @@ export default {
             return;
         }
         this.nodes.forEach(node => {
-            console.log('node:', node)  
+            //console.log('node:', node)  
             let matched = false;
             if (this.elementInfo)
              { this.elementInfo.forEach(element => {

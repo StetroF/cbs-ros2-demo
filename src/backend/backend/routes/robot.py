@@ -8,6 +8,7 @@ import typing
 from rclpy.logging import get_logger
 if typing.TYPE_CHECKING:
     from robot_interface.robot_controller import RobotController
+from robot_interface.base_class import RobotState
 class RobotRouter(APIRouter):
     def __init__(self,robot_controller:RobotController):
         super().__init__(prefix="/Robot")
@@ -26,13 +27,21 @@ class RobotRouter(APIRouter):
         
         while True:
             try:
-                robot_poses = self.robot_controller.get_robot_poses()
+                robot_poses: dict[str, RobotState] = self.robot_controller.get_robot_poses()
+                json_robot_poses = {}
+                
+                for robot in robot_poses:
+                    json_robot_poses[robot] = robot_poses[robot].pose
+                
                 await asyncio.sleep(0.3)
+                
                 if not robot_poses:
                     self.error("No robot poses available")
                     continue
-                await websocket.send_json(robot_poses)
-                
+
+                await websocket.send_json(json_robot_poses)
+            except Exception as e:
+                self.error(f"An error occurred: {e}")
             except RuntimeError as e:
                 self.error(f'连接超时，错误原因: {e}')
                 break
