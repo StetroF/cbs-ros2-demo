@@ -1,0 +1,78 @@
+pip3 install fastapi
+pip3 install 'uvicorn[standard]'
+pip3 install flask
+pip3 install networkx
+pip3 install flask_cors
+
+
+
+
+
+
+##下载npm
+sudo apt update
+sudo apt install nodejs npm
+
+
+##下载nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+
+##更新node
+nvm install 18
+
+npm install
+
+
+
+
+
+
+##开放防火墙允许其他ip访问
+sudo ufw allow 5000
+sudo ufw allow 5173
+
+
+###ngix代理
+sudo apt update
+sudo apt install nginx
+
+进入/etc/nginx/sites-available
+修改已有的default
+server {
+    listen 80;
+    server_name localhost;
+
+    # 静态文件的根目录
+    root /var/www/wsrc-app-web;
+    index index.html;
+
+    # 代理静态文件
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+
+	# pass PHP scripts to FastCGI server
+	#
+	#location ~ \.php$ {
+	#	include snippets/fastcgi-php.conf;
+	#
+	#	# With php-fpm (or other unix sockets):
+	#	fastcgi_pass unix:/run/php/php7.4-fpm.sock;
+	#	# With php-cgi (or other tcp sockets):
+	#	fastcgi_pass 127.0.0.1:9000;
+	#}
+
+	# deny access to .htaccess files, if Apache's document root
+	# concurs with nginx's one
+	#
+	#location ~ /\.ht {
+	#	deny all;
+	#}
+}
+
+
+

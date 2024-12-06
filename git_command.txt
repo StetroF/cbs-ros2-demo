@@ -1,0 +1,65 @@
+强制切换到目标分支：
+git reset --hard origin/feature/main (ｈａｒｄ后面带的就是目标分支）
+重启搜狗输入法：
+pidof fcitx | xargs kill
+pidof sogou-qimpanel | xargs kill
+nohup fcitx 1>/dev/null 2>/dev/null &
+nohup sogou-qimpanel 1>/dev/null 2>/dev/null &
+
+远程拷贝指令:
+scp innovix@10.10.6.220:/opt/wsrc-data
+
+git将main分支合并到当前分支
+1.拉取最新main 分支: git fetch origin main
+2.合并最新main 分支: git merge origin/
+
+git 删除远程分支:
+git push origin :temp-branch
+
+git 删除本地分支
+git branch -d ...
+
+文件排序
+ll --sort=time -r
+
+git取消merge
+git merge --abort
+
+git与远程分支有冲突解决办法：(合并远程分支冲突)
+git pull --tags origin add_web --no-rebase
+
+tlog查看漫游方法：
+1.进入tmp/huangzhenjie
+2.运行./port_forward_169......sh
+3.telenet 169.254.0.1
+4.tlog
+5.status>clock查看相对时间
+6.对比
+
+
+查看磁盘目标目录的内存占用
+sudo du /home/ -d1 -h
+
+调整音量：
+alsamixer
+
+查看单个文件占用
+du -h  文件名
+
+查找包含字符的文件：
+grep -r "rangeVar" . （-r 表示递归，grep表示查找）
+
+当前文件拷贝到远程
+sudo scp ./point.svg innovix@10.10.6.222:/home/innovix/xufz/wsrc-app/web/frontend/src/assets/
+
+找到不包含关键字的文件
+grep -L "语音播报被执行" *.log
+
+快速拷贝车辆的map数据
+sudo scp -r innovix@10.10.6.222:/opt/wsrc-data/map/* /opt/wsrc-data/map/
+
+
+rosdepc安装依赖
+rosdepc install -r --from-paths src --ignore-src --rosdistro $ROS_DISTRO -y
+
+

@@ -1,3 +1,10 @@
+"""
+机器人统一控制接口，订阅5个odom主题，并根据位置差控制机器人运动。(PID控制)
+"""
+
+
+
+
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
@@ -48,7 +55,7 @@ class RobotController(Node):
         # PID 控制器参数
         self.angular_pid = PIDController(1.0, 0.0, 0.1)  # 旋转控制器
         self.linear_pid = PIDController(0.5, 0.0, 0.05)  # 平移控制器
-        self.path_server = self.create_service(PathRequest, 'path_request', self.path_request_callback)
+        self.path_request_server = self.create_service(PathRequest, 'path_request', self.path_request_callback)
     def get_robot_poses(self):
         return self.positions
     def path_request_callback(self, request, response):

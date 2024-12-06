@@ -12,13 +12,13 @@ from backend.routes import *
 this_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(this_dir, '..'))
 if typing.TYPE_CHECKING:
-    from robot_interface.robot_controller import RobotController
+    from robot_interface.fleet import FleetManager
 
 from backend.baseAPI import Point,pathRequest,BaseResponse
 
 class RobotAPI():
-    def __init__(self,robot_controller:RobotController):
-        self.robot_controller = robot_controller
+    def __init__(self,fleet_manager:FleetManager):
+        self.fleet_manager = fleet_manager
         self.app = FastAPI()
         self.app.add_middleware(
             CORSMiddleware,
@@ -28,12 +28,12 @@ class RobotAPI():
             allow_headers=["*"],
         )
                 
-        self.path_req_client = self.robot_controller.create_client(PathRequest, '/path_request')
-        self.logger = self.robot_controller.get_logger()
+        self.path_req_client = self.fleet_manager.create_client(PathRequest, '/path_request')
+        self.logger = self.fleet_manager.get_logger()
         self.init_routes()
         uvicorn.run(self.app, host='0.0.0.0', port=5000)
     def info(self,msg):
-        self.robot_controller.get_logger().info(f'{msg}')
+        self.fleet_manager.get_logger().info(f'{msg}')
     
     
 
@@ -41,7 +41,7 @@ class RobotAPI():
         self.app.add_api_route('/move_to_goal', self.move_to_goal, methods=['POST'])
         map_router = MapRouter(self.logger)
         self.app.include_router(map_router,tags=["Map"])
-        robot_router = RobotRouter(self.robot_controller)
+        robot_router = RobotRouter(self.fleet_manager)
         self.app.include_router(robot_router,tags=["Robot"])
         map_edit_router = MapEditRouter(self.logger)
         self.app.include_router(map_edit_router,tags=["MapEdit"])
