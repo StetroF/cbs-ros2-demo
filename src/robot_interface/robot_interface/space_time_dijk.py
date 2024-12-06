@@ -35,7 +35,10 @@ class Planner:
         self.nodes:list[Node] = []
         self.init_nodes()
         self.build_graph()
-
+    def get_node_pose(self,node_id):
+        for node in self.nodes:
+            if node.node_id == node_id:
+                return node.point
     def init_nodes(self):
         map_id = ""
         if os.path.exists("/home/x/map/history_map_id.txt"):

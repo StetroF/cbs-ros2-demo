@@ -74,19 +74,27 @@ class ConflictBaseSearch:
             print('CBS-MAPF: Open set is empty, no paths found.')
         return np.array([])
     def search_node(self,best:CTNode,results):
-        agent_i, agent_j, time_of_conflict = self.validate_paths(best)
-        
+        # agent_i, agent_j, time_of_conflict = self.validate_paths(best)
+        self.validate_paths(best)
         # If there is not conflict, validate_paths returns (None, None, -1)
-        if agent_i is None:
-            results.append((self.reformat(self.agents, best.solution),))
-            return
+        # if agent_i is None:
+        #     results.append((self.reformat(self.agents, best.solution),))
+        #     return
     def validate_paths(self,node:CTNode):
         for robot1,robot2 in combinations(node.solution,2):
             pprint(f'Robot1: {node.solution[robot1]}, Robot2: {node.solution[robot2]}')
             time_of_conflict = self.safe_distance(node.solution[robot1],node.solution[robot2])
     def safe_distance(self,solution1:list[str,float],solution2:list[str,float]):
-        print(f'Safe distance between {solution1} and {solution2}: ')
+        # print(f'Safe distance between {solution1} and {solution2}: ')
+        
+        path1 = []
+        time_step = 0.3
+        for node_id,time  in solution1:
+            pose = self.st_planner.get_node_pose(node_id)
+            path1.append(pose)
+        pprint(f'Path1: {path1}')
         return
+    
 def main():
     cbs = ConflictBaseSearch()
     robot1 = RobotState('robot1')
