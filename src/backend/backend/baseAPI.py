@@ -5,6 +5,7 @@ class Point(BaseModel):
     x: float
     y: float
     z: float = None
+    node_id: str = None
 class pathRequest(BaseModel):
     robot_id: str
     goal: Point

@@ -170,6 +170,7 @@ export default {
       },
       test_x :1,
       map: null,
+      instructionPoint: [],
       robotMarker: null|L.Marker,//显示机器人位置
       nodeLayer: null,//显示各个node的图层
       edgeLayer: null,//显示各个edge的图层
@@ -182,6 +183,41 @@ export default {
         startPoint:null,
         endPoint:null
       },
+      nodeStyle:{
+          originalStyle:{
+            radius: 2.0,
+            color: 'black',
+            fillColor: 'black',
+            fillOpacity: 1
+          },
+          startPointStyle:{
+            radius:4.0,
+            color: 'green',
+            fillColor: 'green'
+          },
+          endPointStyle:{
+            radius: 4.0,
+            color: 'blue',
+            fillColor: 'blue'
+          },
+          highlightStyle:{
+            radius: 3.5,
+            color: 'red',
+            fillColor: 'black'
+          },
+          chargerPointStyle:{
+            radius: 5,
+            color: '#FFA500', // 替换为温暖的橙色
+            fillColor: '#FFA500', // 柔和的暖黄色
+            fillOpacity: 0.8,
+          },
+          deliverPointStyle:{
+            radius: 5,
+            color: 'purple',
+            fillColor: 'purple'
+          }
+        },
+
       robotMarkerSubject:new Subject(),
     }
   },
@@ -191,11 +227,11 @@ export default {
     {
       this.fetchMapImage()
 
-      this.localPathSubject.pipe(debounceTime(100)).subscribe
-      (localPath => {
-        this.localPath = localPath; // 更新本地路径
-        this.updateLocalPath(); // 更新图层
-      });
+      // this.localPathSubject.pipe(debounceTime(100)).subscribe
+      // (localPath => {
+      //   this.localPath = localPath; // 更新本地路径
+      //   this.updateLocalPath(); // 更新图层
+      // });
     })
     return this.historyRobotPose
   },
@@ -208,7 +244,7 @@ export default {
     this.subscribeRobotPose()
 
     //初始化函数，请求python层每次切换到这个界面时，都会重新加载一遍history_map，保证在编辑地图后，python保存的是最新的node和edge信息
-    axios.post(`http://${this.publicIP}:5000/Task/init_node`)
+    // axios.post(`http://${this.publicIP}:5000/Task/init_node`)
 
     this.listenKeyboard()
     this.robotMarkerSubject.subscribe(robotPose => {
@@ -289,6 +325,26 @@ export default {
         console.error('取消任务失败:', error);
       });
     },
+    drawEdges() {
+      // 清空现有的边缘图层
+          this.edgeLayer.clearLayers();
+          // if (!this.map_info.edges)
+          // {
+          //   alert('当前没有获取到边!')
+          //     return;
+          // }
+          if (!this.map_info.edges) {
+            return;}
+          this.map_info.edges.forEach(edge => 
+          {
+            const [visLine,seletableObj]=this.addEdge(edge)
+            this.edgeLayer.addLayer(visLine)
+            this.edgeLayer.addLayer(seletableObj)
+          
+          })
+
+      },  
+
     unsubscribeRobotPose(){
       if (this.robotPoseWebsocket){
         this.robotPoseWebsocket.close();
@@ -479,93 +535,170 @@ export default {
       }
     },
     //显示普通点，充点电，储位点
-    async drawNodes() {
-      // console.log('此时的elementinfo: ', this.elementInfo);
+    drawNodes() {
+        // 清空现有的节点图层
+        this.nodesLayer.clearLayers();
+        if (this.taskNodeLayer) {
+            this.taskNodeLayer.clearLayers(); // 如果 taskNodeLayer 也需要清空
+        }
 
-      // 遍历 elementInfo 和 nodes 匹配节点，构建 instructionPoint 列表
-      this.nodes.forEach(node => {
-        let matched = false;
-        if(this.elementInfo)
-        {
-          this.elementInfo.forEach(element => {
-          const element_x = element.featureParam.featureOperationInfo.targetPoint.x;
-          const element_y = element.featureParam.featureOperationInfo.targetPoint.y;
+        this.instructionPoint = []; // 重置 instructionPoint 列表
 
-          const node_x = node.x;
-          const node_y = node.y;
+        // 清除现有的工具提示
+        if (this.tooltipLayer) {
+            this.tooltipLayer.clearLayers(); // 清除工具提示图层
+        }
 
-          if (Math.abs(element_x - node_x)<0.01 && Math.abs(element_y - node_y)<0.01) {
-            // console.log('找到匹配的节点:', node);
-            let originStyle;
-            if (element.type === 1) {
-              originStyle = this.nodeStyle.chargerPointStyle;
-            } else if (element.type === 0) {
-              originStyle = this.nodeStyle.deliverPointStyle; // 储位点样式
-            } else {
-              originStyle = this.nodeStyle.originalStyle; // 默认样式
+        // 遍历 elementInfo 和 nodes 匹配节点，构建 instructionPoint 列表
+        if (!this.nodes){
+          console.log('没有节点数据')
+            return;
+        }
+        this.nodes.forEach(node => {
+            console.log('node:', node)  
+            let matched = false;
+            if (this.elementInfo)
+             { this.elementInfo.forEach(element => {
+                  const element_x = element.featureParam.featureOperationInfo.targetPoint.x;
+                  const element_y = element.featureParam.featureOperationInfo.targetPoint.y;
+
+                  const node_x = node.x;
+                  const node_y = node.y;
+
+                  if (Math.abs(element_x - node_x)<0.01 && Math.abs(element_y - node_y)<0.01) {
+                      let originStyle;
+                      if (element.type === 1) {
+                          originStyle = this.nodeStyle.chargerPointStyle;
+                      } else if (element.type === 0) {
+                          originStyle = this.nodeStyle.deliverPointStyle; // 储位点样式
+                      } else {
+                          originStyle = this.nodeStyle.originalStyle; // 默认样式
+                      }
+
+                      this.instructionPoint.push({
+                          type: element.type,
+                          x: (element_x / this.map_info.resolution) * this.map_info.scale,
+                          y: (element_y / this.map_info.resolution) * this.map_info.scale,
+                          originStyle: originStyle,
+                          label: element.type === 1 ? '充点电' : (element.type === 0 ? '储位点' : undefined),
+                          node_id: node.node_id,
+                      });
+
+                      matched = true;
+                  }
+              });
+            }
+            // 如果没有匹配的节点，设置默认样式的 instructionPoint
+            if (!matched) {
+                this.instructionPoint.push({
+                    type: 2,
+                    x: (node.x / this.map_info.resolution) * this.map_info.scale,
+                    y: (node.y / this.map_info.resolution) * this.map_info.scale,
+                    originStyle: this.nodeStyle.originalStyle,
+                    node_id: node.node_id,
+                });
+            }
+        });
+
+        // 基于 instructionPoint 渲染 marker
+        this.instructionPoint.forEach(point => {
+            const x = point.x;
+            const y = point.y;
+
+            const marker = L.circleMarker([y, x], {
+                radius: point.originStyle.radius || 1.5,
+                color: point.originStyle.color || 'black',
+                fillColor: point.originStyle.fillColor || 'black',
+                fillOpacity: point.originStyle.fillOpacity || 1,
+            });
+            const markerTooltip = L.tooltip({
+                permanent: true,    // 永久显示
+                direction: 'top',  // 在上方显示
+                className: 'custom-tooltip', // 自定义类名样式
+                offset: [0, -10],   // 调整与节点的距离
+            })
+            .setContent(point.node_id)  // 设置标签内容
+            .setLatLng([y, x]);  // 设置标签位置
+            marker.tooltip = markerTooltip;
+            this.tooltipLayer.addLayer(markerTooltip); // 添加到工具提示图层
+
+            if (point.label) {
+                const tooltip = L.tooltip({
+                    permanent: true,    // 永久显示
+                    direction: 'top',  // 在上方显示
+                    className: 'custom-tooltip', // 自定义类名样式
+                    offset: [0, -10],   // 调整与节点的距离
+                })
+                .setContent(point.node_id)  // 设置标签内容
+                .setLatLng([y, x]);  // 设置标签位置
+                marker.tooltip = tooltip;
+                this.tooltipLayer.addLayer(tooltip); // 添加到工具提示图层
             }
 
-            this.instructionPoint.push({
-              type: element.type,
-              x: (element_x / this.map_info.resolution) * this.map_info.scale,
-              y: (element_y / this.map_info.resolution) * this.map_info.scale,
-              originStyle: originStyle,
-              label: element.type === 1 ? '充点电' : (element.type === 0 ? '储位点' : undefined), // 只有当type为0或1时设置label，其他情况为undefined
-              node_id: node.node_id,
+            // 创建一个透明的 DivIcon 用于增大拖动判定范围
+            const dragIcon = L.divIcon({
+                className: 'transparent-drag-area', // 定义透明图标的样式
+                iconSize: [20, 20],                 // 设置透明区域的大小
+                iconAnchor: [10, 10],               // 图标锚点
             });
+            const dragMarker = L.marker([y, x], {
+                icon: dragIcon,
+                draggable: false,                    // 默认禁止拖动
+                opacity: 0,                         // 透明度设为 0
+            }).addTo(this.map);
 
-            matched = true;
-          }
+
+            marker.point = point; // 保存节点信息
+            marker.originalStyle = point.originStyle; // 保存原始样式
+            marker.relativeEdges = []
+            marker.dragMarker = dragMarker
+            // 将拖动事件同步到实际的 circleMarker 上
+            marker.dragMarker.on('drag', (event) => {
+              const markerLatLng = event.target.getLatLng();
+              const point = this.map.latLngToContainerPoint(markerLatLng);
+              // 获取 mapLayer 的边界
+              const bounds = this.imageOverlay.getBounds();
+              const downleft = this.map.latLngToContainerPoint(bounds.getSouthWest());
+
+              
+              // 计算相对于 mapLayer 的坐标
+              let relativeX = point.x - downleft.x;
+              let relativeY = downleft.y - point.y;
+
+              const zoom = this.map.getZoom();
+              relativeX = relativeX / (Math.pow(2, zoom))
+              relativeY = relativeY / (Math.pow(2, zoom))
+              this.nodeSubject.next({
+                  node_id: marker.point.node_id,
+                  x: relativeX,
+                  y: relativeY,
+                  delete:false
+                })
+
+            });
+            // 添加 marker 到图层
+            this.nodesLayer.addLayer(marker);
         });
-        }
-        
+        const isMatchingPoint = (node, targetPoint) => {
+          return (
+            targetPoint !== null &&
+            node._latlng.lat === targetPoint._latlng.lat &&
+            node._latlng.lng === targetPoint._latlng.lng
+          );
+        };
 
-        // 如果没有匹配的节点，设置默认样式的 instructionPoint
-        if (!matched) {
-          this.instructionPoint.push({
-            type: 2,
-            x: (node.x / this.map_info.resolution) * this.map_info.scale,
-            y: (node.y / this.map_info.resolution) * this.map_info.scale,
-            originStyle: this.nodeStyle.originalStyle,
-            node_id: node.node_id,
-          });
-        }
-      });
-
-      // console.log('节点信息:', this.instructionPoint);
-
-      // 基于 instructionPoint 渲染 marker
-      this.instructionPoint.forEach(point => {
-        const x = point.x;
-        const y = point.y;
-
-        const marker = L.circleMarker([y, x], {
-          radius: point.originStyle.radius || 1.5,
-          color: point.originStyle.color || 'black',
-          fillColor: point.originStyle.fillColor || 'black',
-          fillOpacity: point.originStyle.fillOpacity || 1,
-        });
-
-        marker.point = point; // 保存节点信息
-        marker.originalStyle = point.originStyle; // 保存原始样式
-        marker.node_id = point.node_id; // 保存节点id
-        // 如果是充电点或储位点，添加文字标签
-        if (point.label) {
-          const tooltip = L.tooltip({
-            permanent: true,    // 永久显示
-            direction: 'top',  // 在左侧显示
-            className: 'custom-tooltip', // 自定义类名样式
-            offset: [-10, 0],   // 调整与节点的距离
-          })
-            .setContent(point.label)  // 设置标签内容
-            .setLatLng([y, x])  // 设置标签位置
-          this.tooltipLayer.addLayer(tooltip);
+        this.taskNodeLayer.eachLayer((node) => {
+          if (isMatchingPoint(node, this.taskPoint.startPoint)){
+            node.setStyle(this.nodeStyle.startPointStyle);
           }
-
-        // 添加 marker 到图层
-        this.nodesLayer.addLayer(marker);
-        this.taskNodeLayer.addLayer(marker);
-      });
+          if (isMatchingPoint(node, this.taskPoint.endPoint)) {
+            node.setStyle(this.nodeStyle.endPointStyle);
+          }
+        })
+        // 确保工具提示图层被添加到地图上（如果尚未添加）
+        if (!this.map.hasLayer(this.tooltipLayer)) {
+            this.tooltipLayer.addTo(this.map);
+        }
     },
 
 
@@ -807,6 +940,160 @@ export default {
 
         return [controlPointX, controlPointY];
     },
+    addEdge(edge){
+        // if(this.nodeLayer){
+
+          const startX = edge.startPoint.x / this.map_info.resolution * this.map_info.scale;
+          const startY = edge.startPoint.y / this.map_info.resolution * this.map_info.scale;
+          const endX = edge.endPoint.x / this.map_info.resolution * this.map_info.scale;
+          const endY = edge.endPoint.y / this.map_info.resolution * this.map_info.scale;
+          const edge_id = edge.edgeId
+
+
+
+
+
+          this.nodesLayer.eachLayer((node) => {
+            if (Math.abs(node.point.x - startX) < 15 && Math.abs(node.point.y - startY) < 15
+              || Math.abs(node.point.x - endX) < 15 && Math.abs(node.point.y - endY) < 15){
+                node.relativeEdges.push(edge_id)
+            }})
+
+          // 1.绘制边
+          if (edge.edgeType === 'line') {
+              const line = L.polyline([[startY, startX], [endY, endX]], {
+                  color: 'black',
+                  weight: 2,
+                  opacity: 0.4
+              });
+              
+              line.edgeType = 'line';
+              line.edgeId = edge_id;
+              line.width = edge.width;
+              line.velocity = edge.velocity;
+              line.topoType = edge.topoType;
+              line.allowBackward = edge.allowBackward;
+              line.dockingType = edge.dockingType;
+              line.avoidanceMode = edge.avoidanceMode;
+              line.safetyZoneType = edge.safetyZoneType;
+              line.requireApply = edge.requireApply;
+              line.elementId = edge.elementId;
+              line.navigationMode = edge.navigationMode
+
+              line.startPoint = { x: startX, y: startY };
+              line.endPoint = { x: endX, y: endY };
+              // 创建一个透明且更粗的 polyline 覆盖层
+              const selectableObj = L.polyline([[startY, startX], [endY, endX]], {
+                  color: 'black',
+                  weight: 20, // 更粗的线条，方便捕捉鼠标事件
+                  opacity: 0.0 // 完全透明
+              });
+
+              line.selectableObj = selectableObj
+              // 将源线和透明线都添加到图层
+              return [line,selectableObj]
+
+          }
+
+          else if (edge.edgeType === 'bcurve') {
+            const controlPoint1 = this.transformPoint(edge.controlPoints[0]);
+            const controlPoint2 = this.transformPoint(edge.controlPoints[1]);
+
+            const controlPoint3 = this.calculateControlPoint(startX, startY, controlPoint1)
+            const controlPoint4 = this.calculateControlPoint(endX, endY, controlPoint2)
+            // console.log('控制点：', controlPoint1, controlPoint2, controlPoint3, controlPoint4)
+            const bcurve = this.drawBCurve([
+              {x:controlPoint3[0],y:controlPoint3[1]},
+              {x:startX,y:startY},
+              {x:controlPoint1[0],y:controlPoint1[1]},
+              {x:controlPoint2[0],y:controlPoint2[1]},
+              {x:endX,y:endY},
+              {x:controlPoint4[0],y:controlPoint4[1]}]
+            )
+            bcurve.setStyle({color:'black'})
+            const selectableObj = this.drawBCurve([
+              {x:controlPoint3[0],y:controlPoint3[1]},
+              {x:startX,y:startY},
+              {x:controlPoint1[0],y:controlPoint1[1]},
+              {x:controlPoint2[0],y:controlPoint2[1]},
+              {x:endX,y:endY},
+              {x:controlPoint4[0],y:controlPoint4[1]}],
+            )
+            selectableObj.setStyle({opacity:0.0,weight:20,color:'black'})
+            bcurve.selectableObj = selectableObj
+
+            bcurve.startPoint = {x:startX,y:startY}
+            bcurve.endPoint = {x:endX,y:endY}
+            bcurve.topoType = edge.topoType
+            bcurve.width = edge.width
+            bcurve.velocity = edge.velocity
+            bcurve.allowBackward = edge.allowBackward
+            bcurve.dockingType = edge.dockingType
+            bcurve.avoidanceMode = edge.avoidanceMode
+            bcurve.safetyZoneType = edge.safetyZoneType
+            bcurve.requireApply = edge.requireApply
+            bcurve.elementId = edge.elementId
+            bcurve.navigationMode = edge.navigationMode
+
+            bcurve.controlPoints = [
+              controlPoint1,
+              controlPoint2,
+            ]
+
+            bcurve.edgeId = edge_id
+            bcurve.edgeType = 'bcurve'
+            return [bcurve,selectableObj]
+
+          
+          }
+          else if (edge.edgeType === 'curve') 
+          {
+
+              // 转换控制点为 Leaflet 坐标
+              const controlPoints = edge.controlPoints.map(cp => [
+                  cp.y / this.map_info.resolution * this.map_info.scale,
+                  cp.x / this.map_info.resolution * this.map_info.scale,
+              ]);
+
+              // 构造贝塞尔曲线
+              const bezierPoints = [[startY, startX]];
+              controlPoints.forEach(cp => bezierPoints.push(cp));
+              bezierPoints.push([endY, endX]);
+
+
+              const numPoints = 200; // 调整近似的精度
+
+              const polylinePoints = [];
+              for (let t = 0; t <= 1; t += 1 / numPoints) {
+                  const pt = calculateCubicBezier(bezierPoints, t);
+                  polylinePoints.push(pt);
+              }
+              const curve = L.polyline(polylinePoints, { color: 'black', weight: 2, opacity: 0.4 });
+              curve.startPoint = {x:startX,y:startY}
+              curve.endPoint = {x:endX,y:endY}
+              curve.topoType = edge.topoType
+              curve.width = edge.width
+              curve.velocity = edge.velocity
+              curve.allowBackward = edge.allowBackward
+              curve.dockingType = edge.dockingType
+              curve.avoidanceMode = edge.avoidanceMode
+              curve.safetyZoneType = edge.safetyZoneType
+              curve.requireApply = edge.requireApply
+              curve.elementId = edge.elementId  
+              curve.navigationMode = edge.navigationMode
+
+              curve.edgeId = edge_id
+              curve.edgeType = 'curve'
+              curve.controlPoints = controlPoints
+
+              const selectableObj = L.polyline(polylinePoints, { color: 'black', weight: 20, opacity: 0.0 });
+              selectableObj.setStyle({opacity:0.0,weight:20,color:'black'})
+              curve.selectableObj = selectableObj
+
+              return [curve,selectableObj]
+          }
+      },
+
     drawBCurve(bCurvePoints) {
         //console.log('绘制B样条曲线',bCurvePoints)
         const points = bCurvePoints.map(point => [point.x, point.y]); // [latitude, longitude] 格式

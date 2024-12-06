@@ -1333,12 +1333,14 @@
           edgeId: this.selectedEdgeConfig.edgeId,
           allowBackward : this.selectedEdgeConfig.allowBackward,
           startPoint: {
+            node_id: this.selectedEdgeConfig.startPoint.node_id,
             x: this.selectedEdgeConfig.startPoint.x,
             y: this.selectedEdgeConfig.startPoint.y,
           },
           topoType: this.selectedEdgeConfig.topoType,
           edgeType: this.selectedEdgeConfig.edgeType,
           endPoint: {
+            node_id: this.selectedEdgeConfig.endPoint.node_id,
             x: this.selectedEdgeConfig.endPoint.x,
             y: this.selectedEdgeConfig.endPoint.y,
           },
@@ -1371,9 +1373,10 @@
       onSaveEdge(){
         this.selectedEdgeLayer.clearLayers()
         console.log('当前taskPoint：',this.taskPoint)
-        console.log('保存边缘配置：'+JSON.stringify(this.selectedEdgeConfig))
-        this.map_info.edges = this.map_info.edges.filter((edgeInfo) => edgeInfo.edgeId!== this.selectedEdgeConfig.edgeId)
 
+        // console.log('保存边缘配置：'+JSON.stringify(this.selectedEdgeConfig))
+        // this.map_info.edges = this.map_info.edges.filter((edgeInfo) => edgeInfo.edgeId!== this.selectedEdgeConfig.edgeId)
+        
         this.map_info.edges.push(this.generate_edge_json_config())
         console.log('添加Node后:',this.nodes)
 
@@ -2355,7 +2358,7 @@
         const response = await axios.get(`http://${this.publicIP}:5000/Map/GetMapData`);
         // this.elementInfo = response.data.elements_info?JSON.parse(response.data.elements_info).elementInfo:null
         // console.log('elementInfo:', this.elementInfo)
-        console.log('收到地图数据响应',JSON.parse(response.data.map_edges))
+        // console.log('收到地图数据响应',JSON.parse(response.data))
         this.selectedMap = response.data.map_name
 
         this.map_info = {
@@ -2366,7 +2369,7 @@
         this.map_info.edges = JSON.parse(response.data.map_edges).map_edges?JSON.parse(response.data.map_edges).map_edges :[]
         console.log('边信息:',(this.map_info.edges))
         const json_node = JSON.parse(response.data.node);
-        this.nodes = json_node;
+        this.nodes = json_node.node;
         // console.log('node信息',this.nodes)
       } catch (error) {
         console.error('Failed to load map data:', error);
@@ -2392,7 +2395,6 @@
           console.log('没有节点数据')
             return;
         }
-
         this.nodes.forEach(node => {
             console.log('node:', node)  
             let matched = false;
@@ -2692,15 +2694,20 @@
             this.selectedEdge = L.polyline([[strartY, strartX], [endY, endX]], { color: 'black', weight: 3, opacity: 0.5 })
             this.selectedEdge.edgeId = this.generateRandomString()
             this.selectedEdge.relativeNode = [this.taskPoint.startPoint.point.node_id, this.taskPoint.endPoint.point.node_id]
+            this.selectedEdge.startPoint = this.taskPoint.startPoint.point
+            this.selectedEdge.endPoint = this.taskPoint.endPoint.point
+            // this.selectedEdge.addTo(this.edgeLayer)
             // this.edgeLayer.addLayer(this.selectedEdge); // 使用 addLayer 将线添加到 edgeLayer
             console.log('画边:', this.selectedEdge);
             this.showSelectEdge = true;
 
             this.selectedEdgeConfig.startPoint = {
+              node_id: this.selectedEdge.startPoint.node_id,
               x: this.taskPoint.startPoint.point.x / this.map_info.scale * this.map_info.resolution,
               y: this.taskPoint.startPoint.point.y / this.map_info.scale * this.map_info.resolution
             }
             this.selectedEdgeConfig.endPoint = {
+              node_id: this.selectedEdge.endPoint.node_id,
               x:this.taskPoint.endPoint.point.x / this.map_info.scale * this.map_info.resolution,
               y:this.taskPoint.endPoint.point.y / this.map_info.scale * this.map_info.resolution}
 

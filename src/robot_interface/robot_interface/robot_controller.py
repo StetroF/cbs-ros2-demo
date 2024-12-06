@@ -11,8 +11,10 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 util_path = os.path.abspath(os.path.join(current_dir, 'util'))
 print(f'utilPath: {util_path}')
 cbs_ros2_msgs_path = os.path.abspath(os.path.join(current_dir, '../../cbs_ros2_msgs'))
+robot_interface_path = os.path.abspath(os.path.join(current_dir, '../../robot_interface'))
 sys.path.append(util_path)
 sys.path.append(cbs_ros2_msgs_path)
+sys.path.append(robot_interface_path)
 from robot_interface.transform import euler_from_quaternion
 from robot_interface.pid_controller import PIDController
 from cbs_ros2_msgs.srv import PathRequest
