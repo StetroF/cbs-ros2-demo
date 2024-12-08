@@ -222,7 +222,6 @@ class Planner:
 
             # 更新成本，并将邻居节点加入队列
             # 最小堆利用时间成本排序
-            # TODO 关于是同一个点的new_time +=2也许可以提高一点，否则会出现每次探索时都会优先n次搜索当前点,增大了时间消耗
             for neighbour, cost in current_node.neighbours:
                 ###把自己也添加到搜索队列中，用于多机器人路径规划的等待和绕路解法
                 neighbour.add_neighbour(neighbour, 0)
@@ -237,9 +236,9 @@ class Planner:
                 new_time = current_time + total_time_cost
                 new_cost = current_cost + cost
                 ###因为前面会把当前点加入到neighbour中，因此，需要给这个当前点添加一个时间成本，否则for循环时会一直优先搜索当前点，出现死循环
-                ###因此new_time+=2,当new_time大于探索邻居的成本时，dijk就会搜索下一个邻居而不是当前点
+                ###因此new_time+=5,当new_time大于探索邻居的成本时，dijk就会搜索下一个邻居而不是当前点
                 if neighbour == current_node:
-                    new_time +=2
+                    new_time +=5
 
                 if new_cost < costs[neighbour]:
                     costs[neighbour] = new_cost
