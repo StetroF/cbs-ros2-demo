@@ -109,7 +109,7 @@ class Planner:
     1.相对于astar,会根据输入robot的速度，计算机器人到达每个节点的预期时间
     TODO 2.根据dynamic_obstacle
     """
-    def plan(self, robot: RobotState = None, dynamic_obstacle: Dict[str, float] = None):
+    def plan(self, robot: RobotState = None, dynamic_obstacle: Dict[str, float] = None,max_iter_time=500):
         if robot is None:
             robot = RobotState("tb0_1")
             robot.pose = [3.0, 3.25, 1.57]  # 初始位置：[x, y, theta]
@@ -144,9 +144,10 @@ class Planner:
         costs[start_node] = 0
         reach_times = {start_node: start_node_reach_time}  # 跟踪每个节点的到达时间
 
-        while queue:
+        _iter = 0
+        while queue and _iter<max_iter_time:
+            iter_+=1
             current_cost, current_node, current_time, current_angle = heapq.heappop(queue)
-            # current_node.add_neighbour(current_node, 0)  #把自己也加入到搜索队列中 ，用于多机器人路径规划的等待和绕路解法
             
             if current_node in visited:
                 continue
@@ -161,26 +162,32 @@ class Planner:
                 return path[::-1]  # 返回正确顺序的路径
 
             # 更新成本，并将邻居节点加入队列
+            # 最小堆利用时间成本排序
+            # TODO 关于是同一个点的new_time +=2也许可以提高一点，否则会出现每次探索时都会优先n次搜索当前点,增大了时间消耗
             for neighbour, cost in current_node.neighbours:
-                ###把自己也添加到搜索队列中
-                # neighbour.add_neighbour(neighbour, 0)
+                ###把自己也添加到搜索队列中，用于多机器人路径规划的等待和绕路解法
+                neighbour.add_neighbour(neighbour, 0)
                 dist_to_neighbour = ((neighbour.point[0] - current_node.point[0]) ** 2 + (neighbour.point[1] - current_node.point[1]) ** 2) ** 0.5
                 heading_angle_to_neighbour = math.atan2(neighbour.point[1] - current_node.point[1], neighbour.point[0] - current_node.point[0])
                 angle_diff_to_neighbour = heading_angle_to_neighbour - current_angle
-
+    
                 linear_time_cost = dist_to_neighbour / robot.velocity[0]
                 angular_time_cost = abs(angle_diff_to_neighbour) / robot.velocity[1]
                 total_time_cost = round(linear_time_cost + angular_time_cost, 2)
 
                 new_time = current_time + total_time_cost
                 new_cost = current_cost + cost
+                ###因为前面会把当前点加入到neighbour中，因此，需要给这个当前点添加一个时间成本，否则for循环时会一直优先搜索当前点，出现死循环
+                ###因此new_time+=2,当new_time大于探索邻居的成本时，dijk就会搜索下一个邻居而不是当前点
+                if neighbour == current_node:
+                    new_time +=2
 
                 if new_cost < costs[neighbour]:
                     costs[neighbour] = new_cost
                     came_from[neighbour] = current_node
                     reach_times[neighbour] = new_time  # 记录到达邻居节点的时间
                     heapq.heappush(queue, (new_time, neighbour, new_cost, heading_angle_to_neighbour))
-
+        print(f'没有找到路径!')
         return []  # 如果没有找到路径，返回空路径
     
     def draw_graph(self):
