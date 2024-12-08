@@ -40,8 +40,6 @@ class RobotRouter(APIRouter):
                     continue
 
                 await websocket.send_json(json_robot_poses)
-            except Exception as e:
-                self.error(f"An error occurred: {e}")
             except RuntimeError as e:
                 self.error(f'连接超时，错误原因: {e}')
                 break

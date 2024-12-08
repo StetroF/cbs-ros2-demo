@@ -1,4 +1,5 @@
 from __future__ import annotations  # Python 3.7及以上支持推迟注解
+import typing
 if typing.TYPE_CHECKING:
     from robot_interface.robot_controller import RobotController
 

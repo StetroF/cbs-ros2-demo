@@ -9,6 +9,9 @@ from pprint import pprint
 from typing import List, Tuple,Dict
 import heapq
 import math
+import sys
+curr_file_path = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(curr_file_path, '..'))
 from robot_interface.base_class import RobotState
 class Node:
     def __init__(self, node_id, point=[0, 0]):
