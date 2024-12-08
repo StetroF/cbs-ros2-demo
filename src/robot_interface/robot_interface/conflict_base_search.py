@@ -12,12 +12,12 @@ from itertools import combinations
 import os,sys
 from robot_interface.constrain_tree import CTNode
 from robot_interface.constraints import Constraints
-
+import math
 import multiprocessing as mp
 import numpy as np
 class ConflictBaseSearch:
     def __init__(self):
-        self.st_planner = Planner()##包含时间的dijk搜索算法
+        self.st_planner:Planner  = Planner()##包含时间的dijk搜索算法
         self.agents = []  ###机器人列表，这里用agent表示一个机器人
         self.robots:list[RobotState] = []
         self.max_iter_time = 1000
@@ -83,17 +83,42 @@ class ConflictBaseSearch:
     def validate_paths(self,node:CTNode):
         for robot1,robot2 in combinations(node.solution,2):
             pprint(f'Robot1: {node.solution[robot1]}, Robot2: {node.solution[robot2]}')
-            time_of_conflict = self.safe_distance(node.solution[robot1],node.solution[robot2])
-    def safe_distance(self,solution1:list[str,float],solution2:list[str,float]):
-        # print(f'Safe distance between {solution1} and {solution2}: ')
+            time_of_conflict = self.safe_distance(node.solution[robot1],node.solution[robot2],robot1,robot2)
+            if time_of_conflict == -1:
+                continue
+            
+            return robot1,robot2,time_of_conflict
+        return None,None,-1
+    def safe_distance(self, solution1: list[str, float], solution2: list[str, float], robot1, robot2):
+        downsample_path1 = self.st_planner.downsample_path(robot1, solution1)
+        downsample_path2 = self.st_planner.downsample_path(robot2, solution2)
+
+        def find_time_intersection(path1, path2):
+            # 提取时间
+            times1 = [point[1] for point in path1]  
+            times2 = [point[1] for point in path2]
+
+            # 计算交集
+            intersection = set(times1) & set(times2)
+            return sorted(intersection)  # 返回排序后的交集结果
+
+        intersect_time = find_time_intersection(downsample_path1, downsample_path2)
         
-        path1 = []
-        time_step = 0.3
-        for node_id,time  in solution1:
-            pose = self.st_planner.get_node_pose(node_id)
-            path1.append(pose)
-        pprint(f'Path1: {path1}')
-        return
+        if not intersect_time:
+            return -1  # 如果没有交集，返回-1
+
+        for time in intersect_time:
+            # 找到交集时间对应的点
+            point1 = next(point for point in downsample_path1 if point[1] == time)[0]  # 获取对应的点
+            point2 = next(point for point in downsample_path2 if point[1] == time)[0]  # 获取对应的点
+
+            # 计算两点之间的距离
+            distance = math.hypot(point1[0] - point2[0], point1[1] - point2[1])
+            
+            if distance < 0.5:
+                return time  # 返回小于0.5的距离，可以根据需求定制返回值
+
+        return -1  # 如果没有找到小于0.5的距离，返回-1
     
 def main():
     cbs = ConflictBaseSearch()

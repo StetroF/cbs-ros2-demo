@@ -10,6 +10,7 @@ from typing import List, Tuple,Dict
 import heapq
 import math
 import sys
+from itertools import combinations
 curr_file_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(curr_file_path, '..'))
 from robot_interface.base_class import RobotState
@@ -103,11 +104,69 @@ class Planner:
             self.G.add_node(node.node_id, pos=node.point)
             for neighbour, cost in node.neighbours:
                 self.G.add_edge(node.node_id, neighbour.node_id, weight=cost)
+    ###下采样path，根据输入的path(point,time),返回根据时间步长下采样后的path
+    """
+    作用：下采样path，根据输入的path(point,time),返回根据时间步长下采样后的path
+    参数：
+        robot:提供机器人一开始的角度信息
+        path:输入的path(point,time),格式为[(node_id,time),(node_id,time),...]
+        time_step:时间步长，默认为1.0s
+    返回：
+        results:下采样后的path,格式为[(point,1.0),(point,2.0),...]
+    """
+    def downsample_path(self,robot:RobotState, path: list[tuple], time_step=1.0):
+        results = []
+        for point_start, point_end in combinations(path, 2):
+            # 计算时间数组
+            time_diff = abs(point_end[1] - point_start[1])
+            time_step_num = math.floor(time_diff / time_step)
+            time_array = [point_start[1] + i * time_step for i in range(time_step_num + 1)]
+            time_array.append(point_end[1])
+
+            # 根据时间数组预测机器人在整条路径中，每隔1s的位置
+            start_node = self.nodes[self.nodes.index(point_start[0])]
+            end_node = self.nodes[self.nodes.index(point_end[0])]
+
+            dist = math.hypot(end_node.point[0] - start_node.point[0], end_node.point[1] - start_node.point[1])
+            # 计算机器人的角度变化
+            target_angle = math.atan2(end_node.point[1] - start_node.point[1], end_node.point[0] - start_node.point[0])
+            ###这个if表示，初始的角度差利用robot_angle计算,后续则用点与点之间的连线做计算
+            """
+            current_angle: 机器人在当前点时的角度,用于判断机器人是否已经朝向了目标角度
+            last_target_angle:机器人在到达一个点后的角度
+            angle_change: 机器人在到达一个点后，与下一个点的角度差
+            """
+            if point_start == self.nodes[0]:
+                angle_change = target_angle - robot.pose[2]  # 假设robot.pose[2]是机器人的起始角度
+                last_target_angle = robot.pose[2]
+                current_angle = robot.pose[2]
+            else:
+                angle_change = target_angle - last_target_angle
+                current_angle = last_target_angle
+                last_target_angle = target_angle###记录上一个点的朝向
+
+
+            for time in time_array:
+                if abs(angle_change)>0.5:###只有角度差大于0.5的rad，即30度时，才考虑机器人的path中原地旋转的耗时
+                    print(f'角度变化：{angle_change},下采样path时先采样角度变化')
+                    current_angle += robot.velocity[1] * time
+                    angle_change = target_angle - current_angle
+                    results.append((start_node.point, time))
+                else:
+                    print(f'机器人已经朝向了目标角度，下面开始考虑距离采样')
+                    x = start_node.point[0] + dist * (time/time_diff) * robot.velocity[0] * math.cos(target_angle)
+                    y = start_node.point[1] + dist * (time/time_diff) * robot.velocity[0] * math.sin(target_angle)
+                    results.append(([round(x, 4), round(y, 4)], time))
+                    
+                    
                 
+
+        
+        return results
     """
     space-time-star 算法
     1.相对于astar,会根据输入robot的速度，计算机器人到达每个节点的预期时间
-    TODO 2.根据dynamic_obstacle
+    TODO 2.根据dynamic_obstacle，以及semi_dynamic_obstacle(其他robot到达目标点后的约束)
     """
     def plan(self, robot: RobotState = None, dynamic_obstacle: Dict[str, float] = None,max_iter_time=500):
         if robot is None:
