@@ -34,6 +34,9 @@ class Node:
 
     def __repr__(self):
         return str(self.node_id)
+    def __lt__(self, other):
+        return self.node_id < other.node_id
+    
 class Planner:
     def __init__(self):
         self.nodes:list[Node] = []
@@ -115,67 +118,66 @@ class Planner:
         results:下采样后的path,格式为[(point,1.0),(point,2.0),...]
     """
     def downsample_path(self,robot:RobotState, path: list[tuple], time_step=1.0):
+        
         results = []
-        for point_start, point_end in combinations(path, 2):
+        last_target_angle=0.0
+        for point_start, point_end in zip(path, path[1:]):
             # 计算时间数组
             time_diff = abs(point_end[1] - point_start[1])
             time_step_num = math.floor(time_diff / time_step)
             time_array = [point_start[1] + i * time_step for i in range(time_step_num + 1)]
-            time_array.append(point_end[1])
+            # time_array.append(round(point_end[1]))
 
             # 根据时间数组预测机器人在整条路径中，每隔1s的位置
             start_node = self.nodes[self.nodes.index(point_start[0])]
             end_node = self.nodes[self.nodes.index(point_end[0])]
 
             dist = math.hypot(end_node.point[0] - start_node.point[0], end_node.point[1] - start_node.point[1])
+            x_dist = end_node.point[0] - start_node.point[0]
+            y_dist = end_node.point[1] - start_node.point[1]
             # 计算机器人的角度变化
             target_angle = math.atan2(end_node.point[1] - start_node.point[1], end_node.point[0] - start_node.point[0])
-            ###这个if表示，初始的角度差利用robot_angle计算,后续则用点与点之间的连线做计算
-            """
-            current_angle: 机器人在当前点时的角度,用于判断机器人是否已经朝向了目标角度
-            last_target_angle:机器人在到达一个点后的角度
-            angle_change: 机器人在到达一个点后，与下一个点的角度差
-            """
-            if point_start == self.nodes[0]:
-                angle_change = target_angle - robot.pose[2]  # 假设robot.pose[2]是机器人的起始角度
-                last_target_angle = robot.pose[2]
-                current_angle = robot.pose[2]
-            else:
-                angle_change = target_angle - last_target_angle
-                current_angle = last_target_angle
-                last_target_angle = target_angle###记录上一个点的朝向
 
-
+            print(f'起始点: {start_node.point}, 终止点: {end_node.point}, 距离: {dist}, 目标角度: {target_angle},')
+            # rotate_time_cost = 0
             for time in time_array:
-                if abs(angle_change)>0.5:###只有角度差大于0.5的rad，即30度时，才考虑机器人的path中原地旋转的耗时
-                    print(f'角度变化：{angle_change},下采样path时先采样角度变化')
-                    current_angle += robot.velocity[1] * time
-                    angle_change = target_angle - current_angle
-                    results.append((start_node.point, time))
-                else:
-                    print(f'机器人已经朝向了目标角度，下面开始考虑距离采样')
-                    x = start_node.point[0] + dist * (time/time_diff) * robot.velocity[0] * math.cos(target_angle)
-                    y = start_node.point[1] + dist * (time/time_diff) * robot.velocity[0] * math.sin(target_angle)
-                    results.append(([round(x, 4), round(y, 4)], time))
-                    
-                    
-                
+                delta_x = x_dist * time_array.index(time) *time_step /time_diff
+                delta_y = y_dist * time_array.index(time) *time_step /time_diff
+                x = start_node.point[0] + delta_x
+                y = start_node.point[1] + delta_y
+                results.append(([round(x, 4), round(y, 4)], time))
+                # rotate_time_cost += abs(angle_diff_to_start) / robot.velocity[1]
+                # num_step= int(time_diff/time_step)
+                # for i in range(num_step):
+                #     t = i*time_step
+                #     x = start_node.point[0] + t / time_diff * x_dist
+                #     y = start_node.point[1] + t / time_diff * y_dist
+                #     results.append(([round(x, 4), round(y, 4)], time+t))
 
-        
+
+    
         return results
+    ###根据输入的solution(包含n个node_id),输出坐标
+    def get_path_by_solution(self,solution:list[str,float]):
+        
+        path = [[self.nodes[self.nodes.index(node_id)].point,time] for [node_id,time] in solution]
+        return path
     """
     space-time-star 算法
     1.相对于astar,会根据输入robot的速度，计算机器人到达每个节点的预期时间
     TODO 2.根据dynamic_obstacle，以及semi_dynamic_obstacle(其他robot到达目标点后的约束)
+    args:
+        dynamic_obstacle: 其他机器人到达目标点后的约束，格式为[(node_id,time),(node_id,time),...]
+        leavt_time: 机器人离开目标点的时间，默认为3s
     """
-    def plan(self, robot: RobotState = None, dynamic_obstacle: Dict[str, float] = None,max_iter_time=500):
+    def plan(self, robot: RobotState = None, dynamic_obstacle: list[str,float] = None,max_iter_time=500,leave_time=3):
         if robot is None:
             robot = RobotState("tb0_1")
             robot.pose = [3.0, 3.25, 1.57]  # 初始位置：[x, y, theta]
             robot.velocity = [0.5, 0.5]  # 线速度和角速度
             robot.current_goal = "P15"
             robot.timestamp = 0.0  # 初始时间戳
-        print(f'当前机器人位置：{robot.pose}')
+        # print(f'当前机器人位置：{robot.pose}')
         # 找到距离机器人当前位置最近的节点
         start_node = min(self.nodes, key=lambda x: ((x.point[0] - robot.pose[0]) ** 2 + (x.point[1] - robot.pose[1]) ** 2) ** 0.5)
         target_node_id = robot.current_goal
@@ -188,9 +190,8 @@ class Planner:
 
         linear_time_cost = dist_to_start / robot.velocity[0]
         angular_time_cost = abs(angle_diff_to_start) / robot.velocity[1]
-        start_time_cost = round(linear_time_cost + angular_time_cost, 2)
+        start_time_cost = round(linear_time_cost + angular_time_cost)
         
-        print(f'初始时间成本：{start_time_cost}s')
 
         start_node_reach_time = robot.timestamp + start_time_cost
         
@@ -201,16 +202,18 @@ class Planner:
         came_from = {}  # 用于路径重构
         costs = {node: float('inf') for node in self.nodes}
         costs[start_node] = 0
-        reach_times = {start_node: start_node_reach_time}  # 跟踪每个节点的到达时间
+        reach_times = {node: float('inf') for node in self.nodes}  # 跟踪每个节点的到达时间
+        reach_times[start_node] = start_node_reach_time  # 
+
 
         _iter = 0
         while queue and _iter<max_iter_time:
-            iter_+=1
-            current_cost, current_node, current_time, current_angle = heapq.heappop(queue)
-            
-            if current_node in visited:
-                continue
-            visited.add(current_node)
+            _iter+=1
+            current_time, current_node, current_cost, current_angle = heapq.heappop(queue)
+            # print(f'当前迭代次数：{_iter},当前节点：{current_node},当前时间：{current_time},当前角度：{current_angle}')
+            ###把当前点放入到探索队列，用于多机器人规划的约束计算
+            heapq.heappush(queue, (current_time+3, current_node, current_cost, current_angle))  # 重新放回队列，以便下次访问
+
 
             # 如果目标节点被到达，重构路径
             if current_node == end_node:
@@ -218,33 +221,36 @@ class Planner:
                 while current_node:
                     path.append((current_node.node_id, reach_times[current_node]))  # 添加节点ID和到达时间
                     current_node = came_from.get(current_node)
+                print(f'路径规划完成，路径长度：{len(path)},迭代次数：{_iter}')
                 return path[::-1]  # 返回正确顺序的路径
 
             # 更新成本，并将邻居节点加入队列
             # 最小堆利用时间成本排序
             for neighbour, cost in current_node.neighbours:
-                ###把自己也添加到搜索队列中，用于多机器人路径规划的等待和绕路解法
-                neighbour.add_neighbour(neighbour, 0)
                 dist_to_neighbour = ((neighbour.point[0] - current_node.point[0]) ** 2 + (neighbour.point[1] - current_node.point[1]) ** 2) ** 0.5
                 heading_angle_to_neighbour = math.atan2(neighbour.point[1] - current_node.point[1], neighbour.point[0] - current_node.point[0])
                 angle_diff_to_neighbour = heading_angle_to_neighbour - current_angle
     
                 linear_time_cost = dist_to_neighbour / robot.velocity[0]
                 angular_time_cost = abs(angle_diff_to_neighbour) / robot.velocity[1]
-                total_time_cost = round(linear_time_cost + angular_time_cost, 2)
+                total_time_cost = round(linear_time_cost + angular_time_cost)
 
                 new_time = current_time + total_time_cost
                 new_cost = current_cost + cost
-                ###因为前面会把当前点加入到neighbour中，因此，需要给这个当前点添加一个时间成本，否则for循环时会一直优先搜索当前点，出现死循环
-                ###因此new_time+=5,当new_time大于探索邻居的成本时，dijk就会搜索下一个邻居而不是当前点
-                if neighbour == current_node:
-                    new_time +=5
+                if dynamic_obstacle:
+                    # print(f'neighbour: {neighbour.node_id}, time: {new_time}, cost: {new_cost}')
+                    if neighbour.node_id == dynamic_obstacle[0] and new_time == dynamic_obstacle[1]:
+                        # costs[neighbour] = new_cost
+                        came_from[neighbour] = neighbour
+                        # reach_times[neighbour] = current_time+3  # 记录到达邻居节点的时间
+                        heapq.heappush(queue, (current_time+3, neighbour, 0, heading_angle_to_neighbour))
+                        continue
 
-                if new_cost < costs[neighbour]:
+                if new_time < reach_times[neighbour]:
                     costs[neighbour] = new_cost
                     came_from[neighbour] = current_node
                     reach_times[neighbour] = new_time  # 记录到达邻居节点的时间
-                    heapq.heappush(queue, (new_time, neighbour, new_cost, heading_angle_to_neighbour))
+                    heapq.heappush(queue, (new_time, neighbour, 0, heading_angle_to_neighbour))
         print(f'没有找到路径!')
         return []  # 如果没有找到路径，返回空路径
     
@@ -314,11 +320,15 @@ if __name__ == "__main__":
     # path_tool.draw_graph()
     # Display available nodes
     print("Available nodes:")
-    for node in path_tool.nodes:
-        print(f"{node.node_id} at {node.point}")
+    # for node in path_tool.nodes:
+    #     print(f"{node.node_id} at {node.point}")
 
-    path = path_tool.plan()
+    path = path_tool.plan(dynamic_obstacle=['P5',20])
     print(f"Path: {path}")  
+    robot = RobotState("robot1")
+    robot.pose = [3.0, 3.25, 1.57]  # 初始位置：[x, y, theta]
+    # dp_path = path_tool.downsample_path(robot, path)
+    # print(f"DP Path: {dp_path}")
     # # Get user input for start and end nodes
     # start_node_id = 'P5'
     # end_node_id = 'P15'

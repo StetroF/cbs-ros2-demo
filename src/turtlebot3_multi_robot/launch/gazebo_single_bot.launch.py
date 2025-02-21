@@ -14,6 +14,7 @@
 #
 # Authors: Arshad Mehmood
 
+####用于只生成一个bot到环境中
 import os
 
 from ament_index_python.packages import get_package_share_directory
